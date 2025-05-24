@@ -14,7 +14,6 @@ def format_date(yt_date):
         return datetime.strptime(yt_date, "%Y%m%d").strftime("%d-%m-%Y")
     except:
         return "Data desconhecida"
-        raise
 
 def format_duration(seconds):
     """Converte a duração de segundos para o formato 'X minutos e Y segundos'."""
@@ -24,40 +23,35 @@ def format_duration(seconds):
 
 def format_number(number):
     """Formata números grandes para separação por pontos (ex: 1.000.000)."""
-    return f"{number:}".replace(",", ".")
+    return f"{number:,}".replace(",", ".")
 
-# Pergunta ao usuário o link do vídeo
-video_url = input("🔗 Insira o link do vídeo do YouTube: ").strip()
+video_url = input("🔗 Insira o link do vídeo ou da playlist do YouTube Music: ").strip()
 
-# Escolha do formato
 print("\n🎵 Escolha o formato de download:")
 print("1️⃣ - MP4 (Vídeo)")
 print("2️⃣ - MP3 (Áudio)")
 formato = input("Digite 1 para MP4 ou 2 para MP3: ").strip()
 
-# Configuração do yt-dlp para extrair informações do vídeo
+
 info_opts = {
     "quiet": True,
-    "extract_flat": False,
+    "extract_flat": True,  
 }
 
-# Obtém informações do vídeo
 with yt_dlp.YoutubeDL(info_opts) as ydl:
     info = ydl.extract_info(video_url, download=False)
 
-# Formata o nome do vídeo para criar a pasta corretamente
-video_title = sanitize_filename(info.get("title", "video_desconhecido"))
-video_folder_downloads = os.path.join("downloads", video_title)
-video_folder_info = os.path.join("informations", video_title)
+is_playlist = "_type" in info and info["_type"] == "playlist"
 
-# Cria as pastas específicas para o vídeo
-os.makedirs(video_folder_downloads, exist_ok=True)
-os.makedirs(video_folder_info, exist_ok=True)
+video_title = sanitize_filename(info.get("title", "playlist_desconhecida" if is_playlist else "video_desconhecido"))
+download_folder = os.path.join("downloads", video_title)
+info_folder = os.path.join("informations", video_title)
 
-# Caminho para o JSON de metadados
-json_path = os.path.join(video_folder_info, f"{video_title}.json")
+os.makedirs(download_folder, exist_ok=True)
+os.makedirs(info_folder, exist_ok=True)
 
-# Formatar informações do vídeo
+json_path = os.path.join(info_folder, f"{video_title}.json")
+
 video_data = {
     "Título": info.get("title"),
     "Canal": info.get("uploader"),
@@ -68,35 +62,32 @@ video_data = {
     "URL": info.get("webpage_url"),
 }
 
-# Salva as informações em um arquivo JSON dentro da pasta correta
 with open(json_path, "w", encoding="utf-8") as f:
     json.dump(video_data, f, indent=4, ensure_ascii=False)
 
-# Exibe as informações no terminal
-print("\n📊 Informações do Vídeo:")
+print("\n📊 Informações:")
 for key, value in video_data.items():
     print(f"🔹 {key}: {value}")
 
 print(f"\n📄 Metadados salvos em '{json_path}'.")
 
-# Configuração para baixar o vídeo ou áudio
 if formato == "1":
     ydl_opts = {
         "format": "bv*+ba/best",
-        "outtmpl": os.path.join(video_folder_downloads, "%(title)s.%(ext)s"),
+        "outtmpl": os.path.join(download_folder, "%(playlist_index)s - %(title)s.%(ext)s" if is_playlist else "%(title)s.%(ext)s"),
         "merge_output_format": "mp4",
         "postprocessors": [
             {
                 "key": "FFmpegVideoConvertor",
-                "preferedformat": "mp4",
+                "preferredformat": "mp4",
             }
         ],
     }
-    tipo_download = "🎬 Baixando vídeo em MP4..."
+    tipo_download = "🎬 Baixando vídeo(s) em MP4..."
 elif formato == "2":
     ydl_opts = {
         "format": "bestaudio/best",
-        "outtmpl": os.path.join(video_folder_downloads, "%(title)s.%(ext)s"),
+        "outtmpl": os.path.join(download_folder, "%(playlist_index)s - %(title)s.%(ext)s" if is_playlist else "%(title)s.%(ext)s"),
         "postprocessors": [
             {
                 "key": "FFmpegExtractAudio",
@@ -105,7 +96,7 @@ elif formato == "2":
             }
         ],
     }
-    tipo_download = "🎵 Baixando áudio em MP3..."
+    tipo_download = "🎵 Baixando áudio(s) em MP3..."
 else:
     print("❌ Opção inválida! Saindo...")
     exit()
@@ -115,5 +106,5 @@ with yt_dlp.YoutubeDL(ydl_opts) as ydl:
     ydl.download([video_url])
 
 print("\n✅ Download concluído! Os arquivos foram salvos em:")
-print(f"📂 {video_folder_downloads} (Mídia)")
-print(f"📂 {video_folder_info} (Informações)")
+print(f"📂 {download_folder} (Mídia)")
+print(f"📂 {info_folder} (Informações)")
