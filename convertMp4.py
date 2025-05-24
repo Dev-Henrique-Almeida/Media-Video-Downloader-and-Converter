@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-Script para converter arquivos MKV para MP4 sem limitações de tamanho
-Autor: Claude
-Data: 05/05/2025
-"""
-
 import os
 import sys
 import argparse
